@@ -1,25 +1,68 @@
 # Bundle: auth-basics — JWT (HS512)
 
-Rival One uses the **same JWT string** for:
+> **Source:** [Client Requests — Authorize (Type 45)](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/client-requests-OKFTPUQJ6w)
 
-1. The WebSocket handshake: header `Authorization: Bearer <JWT>`
-2. The first application message: `{ "RequestType": 45, "RequestData": "<JWT>" }` (authorize; confirm number in [Client Requests](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/client-requests-OKFTPUQJ6w))
+Rival One uses the **same JWT string** for two things:
 
-Algorithm: **HS512**. Header typically includes `alg: HS512`, `typ: JWT`.
+1. The WebSocket handshake connection header: `Authorization: Bearer <JWT>`
+2. The first application message after connect: `{ "RequestType": 45, "RequestData": "<JWT>" }`
 
-## Claims (typical)
+> **WARNING:** You must pass the bearer token in the connection header. Connections without this will be terminated.
 
-| Claim | Meaning |
-|-------|---------|
-| `sub` | Subject (often a fixed string from the vendor doc) |
-| `group` | Rival-assigned trading group — must match registration |
-| `user` | Rival-assigned API user — must match registration |
-| `apikey` | Your API key |
-| `firm` | **Optional.** Rival may ask you to include this login-credentials claim when your entitlement uses firm scoping—omit unless your onboarding or [Client Requests](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/client-requests-OKFTPUQJ6w) says to set it. |
+Algorithm: **HS512**. Header must specify `alg: HS512`, `typ: JWT`.
 
-Use **either** a pre-built JWT from your portal **or** build it in your app from key + secret + claims.
+## JWT Header
 
-> **Secrets:** Treat `RIVAL_ONE_*` (or your own env names) as confidential. Never commit them. `group` and `user` are still sensitive identifiers.
+```json
+{
+  "alg": "HS512",
+  "typ": "JWT"
+}
+```
+
+## JWT Payload Claims
+
+| Claim | Required | Description |
+|-------|----------|-------------|
+| `sub` | No | Subject identifier (e.g. `"Rival API user Authentication"`) |
+| `group` | **Yes** | Rival-assigned trading group — must match registration exactly |
+| `user` | **Yes** | Rival-assigned API user — must match registration exactly |
+| `apikey` | **Yes** | Your Rival API key |
+| `firm` | No | **Optional.** Include only when Rival instructs you to send firm scoping (maps to `RIVAL_ONE_FIRM`). |
+
+> **Secrets:** Treat all `RIVAL_ONE_*` env vars as confidential. Never commit them to source control. `group` and `user` are still sensitive identifiers even without the secret.
+
+## Authorize Request (Type 45) — After Connect
+
+Send immediately after the WebSocket connection is established. `RequestData` is the full JWT string (identical to the Bearer token):
+
+```json
+{
+    "RequestType": 45,
+    "RequestData": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+## Authorize Response (Type 9) — Success
+
+On successful authorization, the server sends a Type 9 response **and automatically pushes**:
+- User settings (Type 13)
+- Trade settings (Type 14)  
+- Accounts (Type 15)
+- Broker routes (Type 38)
+
+```json
+{
+    "ResponseType": 9,
+    "ResponseData": {
+        "IsAuthorized": true,
+        "ErrorMessage": "",
+        "Role": "API User"
+    }
+}
+```
+
+On failure, `IsAuthorized` will be `false` and `ErrorMessage` will contain the reason. See [errors-troubleshooting.md](errors-troubleshooting.md) for common auth errors.
 
 ## Python (PyJWT)
 
@@ -64,7 +107,7 @@ export async function buildJwt(params: {
   group: string;
   user: string;
   sub?: string;
-  /** Optional login claim when Rival instructs you to send firm scoping */
+  /** Optional — include only when Rival instructs firm scoping */
   firm?: string;
 }): Promise<string> {
   const key = new TextEncoder().encode(params.secretKey.trim());
@@ -87,7 +130,7 @@ Install: `npm install jose`
 
 ## C# (.NET)
 
-`System.IdentityModel.Tokens.Jwt` enforces a **minimum 64-byte secret** for HS512 (`IDX10720` if too short). Other stacks may only warn.
+`System.IdentityModel.Tokens.Jwt` enforces a **minimum 64-byte secret** for HS512 (`IDX10720` if the secret is too short). Other stacks may only warn.
 
 ```csharp
 using System.Collections.Generic;
@@ -96,7 +139,9 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 
-static string BuildJwt(string apiKey, string secretKey, string group, string user, string sub = "Rival API user Authentication", string? firm = null)
+static string BuildJwt(
+    string apiKey, string secretKey, string group, string user,
+    string sub = "Rival API user Authentication", string? firm = null)
 {
     var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey.Trim()));
     var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512);
@@ -114,9 +159,10 @@ static string BuildJwt(string apiKey, string secretKey, string group, string use
 }
 ```
 
-Packages: `System.IdentityModel.Tokens.Jwt`, `Microsoft.IdentityModel.Tokens`.
+Packages: `System.IdentityModel.Tokens.Jwt`, `Microsoft.IdentityModel.Tokens`
 
 ## See also
 
-- [connection.md](connection.md) — use the JWT on the socket
-- [../references/protocol.md](../references/protocol.md)
+- [connection.md](connection.md) — using the JWT on the socket + full connect/authorize flow
+- [errors-troubleshooting.md](errors-troubleshooting.md) — auth failure messages
+- [../references/protocol.md](../references/protocol.md) — envelope format

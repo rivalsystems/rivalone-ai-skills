@@ -5,35 +5,35 @@
     {
       "id": "auth-basics",
       "title": "JWT authentication (HS512)",
-      "summary": "Build or load the Bearer token; same string authorizes over the socket (RequestType 45).",
+      "summary": "Build or load the Bearer token (HS512 JWT with sub/group/user/apikey claims); same string is the WebSocket Authorization header and RequestData on Authorize (RequestType 45). Includes authorize response (Type 9) and auto-pushed messages on success.",
       "path": "auth-basics.md",
       "languages": ["python", "typescript", "csharp"]
     },
     {
       "id": "connection",
       "title": "WebSocket connection and heartbeat",
-      "summary": "Open WSS with Authorization header, send authorize, then ping on an interval.",
+      "summary": "Endpoints (SIM/prod), open WSS with Authorization header, authorize (45), handle auto-pushed Types 13/14/15/38, then ping every 5 minutes. Includes TLS/corporate inspection notes.",
       "path": "connection.md",
       "languages": ["python", "typescript", "csharp"]
     },
     {
       "id": "market-data",
       "title": "Instrument search and market data",
-      "summary": "Search (33), multiple subscriptions (0) on one WebSocket with orders; demux inbound, serialize sends.",
+      "summary": "Search (33), subscribe (0) on one shared WebSocket, demux all six market data response types (1/2/35/5/31/6). Includes options workflow (40) and CME sub-exchange names.",
       "path": "market-data.md",
       "languages": ["python", "typescript"]
     },
     {
       "id": "orders",
-      "title": "Send and revise orders",
-      "summary": "Send order (2) with float Quantity/Price; revise (4) without setting GroupName.",
+      "title": "Send, revise, and cancel orders",
+      "summary": "Send order (2) with float Quantity/Price, UserTicketSourceCode, ApiUserOrderId; revise (4); cancel variants (3/5/6/7); order status lifecycle (Type 8) with OrderStatus enum.",
       "path": "orders.md",
       "languages": ["python", "typescript", "csharp"]
     },
     {
       "id": "errors-troubleshooting",
-      "title": "Common errors and checks",
-      "summary": "Auth vs TLS, group/user mismatches, and where to read more.",
+      "title": "Common errors and diagnostics",
+      "summary": "Auth failures (Type 9 IsAuthorized false), error response types (3/21/23), order rejections, subscription failures, diagnostics checklist. Includes exact error payloads.",
       "path": "errors-troubleshooting.md",
       "languages": []
     }

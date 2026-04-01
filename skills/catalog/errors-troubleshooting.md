@@ -1,40 +1,174 @@
-# Bundle: errors-troubleshooting
+# Bundle: errors-troubleshooting — Auth, Connection, and Order Errors
 
-## TLS connected but “not really” logged in
+> **Source:** [Overview — Common Errors](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/overview-MeKFxBVURU) · [Server Responses](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/server-responses-2ZB81dxqCB)
 
-The WebSocket **TLS handshake can succeed** even when credentials are wrong or the user is not registered. Always treat **authorize / login responses** from the server as the source of truth, not merely “socket is open.”
+---
 
-## TLS certificate verification failed (`unable to get issuer certificate`)
+## Auth & Login Errors
 
-If connect fails with **certificate verify failed**, **unable to get issuer certificate**, or similar, the server chain often looks invalid to your process because **SSL inspection** replaced the public chain with one signed by a **corporate CA**.
+### "API user not registered with the system"
 
-- **Fix:** Trust that CA—install it into the OS/runtime store your app uses, or point your TLS/WebSocket client at a **custom CA bundle** (implementation-specific; see your language’s TLS and WebSocket docs).
-- **Do not** rely on disabling verification for production; use it only if IT explicitly allows short-lived diagnostics.
+```
+API user not registered with the system | Grp=[SOMETHING.JSMITH], User=[jsmith]
+```
 
-Details and vendor reference: [connection.md — TLS trust and corporate SSL inspection](connection.md#tls-trust-and-corporate-ssl-inspection) · [Outline — Python example](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/python-example-qlh5BEqaQV) (illustrative optional settings).
+This is the most common login failure. Causes:
 
-## Group / user mismatch
+- `group` claim does not exactly match what Rival registered for your account (case-sensitive, must match character-for-character)
+- `user` claim does not match registration
+- `apikey` claim is wrong or has extra whitespace
+- JWT was built with the wrong secret (signature invalid — server may reject silently or with a generic error)
 
-Message like `API user not registered with the system | Grp=[...], User=[...]` usually means JWT **`group`** or **`user`** claims do not match what Rival has on file (typo, wrong environment, or stale copy-paste).
+**Fix:** Confirm `group`, `user`, and `apikey` values directly with Rival support (`rivalapisupport@rivalsystems.com`). Trim all whitespace before encoding claims.
 
-- Compare values to the portal / onboarding exactly (including punctuation).
-- See [Overview — Common Errors](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/overview-MeKFxBVURU) and [docs/troubleshooting.md](../../docs/troubleshooting.md).
+### Connection terminated immediately on connect
 
-## .NET HS512 secret length
+- Missing or malformed `Authorization: Bearer <jwt>` header on the WebSocket upgrade request
+- JWT header does not specify `alg: HS512` (some libraries default to HS256)
+- Secret key too short for HS512 in your JWT library (C# `IDX10720`: minimum 64 bytes)
 
-If JWT signing fails with **`IDX10720`**, the HMAC key is shorter than the library minimum for HS512. Use a longer secret (≥ 64 bytes) or confirm algorithm requirements with your security standards.
+### Authorize Response `IsAuthorized: false`
 
-## Numeric JSON
+```json
+{
+    "ResponseType": 9,
+    "ResponseData": {
+        "IsAuthorized": false,
+        "ErrorMessage": "API user not registered with the system | Grp=[...], User=[...]"
+    }
+}
+```
 
-If orders fail with server exceptions, verify **`Quantity`** and **`Price`** are serialized as JSON **numbers**, not quoted strings.
+Read `ErrorMessage` for details. The server still returns a Type 9 on failure — do not proceed to subscribe or trade if `IsAuthorized` is `false`.
 
-## `GroupName` in payloads
+---
 
-If you or the model adds **`GroupName`** to outgoing JSON, **remove it** unless the vendor doc explicitly requires it for a specific request. Default stance: **do not set** — see [rival-one-core.md](../rival-one-core.md).
+## Server Error Message Types
 
-## Where to read next
+### Generic Error (Type 3)
 
-- [Rival WebSocket API](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/rival-websocket-api-kFEIQKQvp0)
-- [Client Requests](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/client-requests-OKFTPUQJ6w)
-- [../references/protocol.md](../references/protocol.md)
-- [auth-basics.md](auth-basics.md) · [connection.md](connection.md)
+Critical error resulting from a request or system issue.
+
+```json
+{
+    "ResponseType": 3,
+    "ResponseData": "Ran into an issue"
+}
+```
+
+### Not Entitled Error (Type 21)
+
+Your API key does not have entitlements for the requested data or action.
+
+```json
+{
+    "ResponseType": 21,
+    "ResponseData": {
+        "ErrorMessage": "Ran into an issue because user is not entitled",
+        "Symbol": "ESZ5"
+    }
+}
+```
+
+Common causes: market data for an exchange you're not entitled to, options data without the options entitlement, order submission without trading entitlement.
+
+### Security Not Found (Type 23)
+
+Symbol was not found — the contract has likely expired or the symbol is malformed.
+
+```json
+{
+    "ResponseType": 23,
+    "ResponseData": {
+        "ErrorMessage": "This contract is either expired or your request symbol is malformed",
+        "Symbol": "ESZ3"
+    }
+}
+```
+
+**Fix:** Run an Instrument Search (Type 33) to verify the current active contract symbol before subscribing.
+
+---
+
+## Order Errors
+
+### Order Rejected
+
+Rejections arrive as Order Status (Type 8) messages. Check `Text` for the rejection reason:
+
+```json
+{
+    "ResponseType": 8,
+    "ResponseData": {
+        "Tag": "ngen01-32122-...",
+        "OrderStatus": -1,
+        "Text": "Account not authorized for this instrument",
+        "LeaveShares": 0.0
+    }
+}
+```
+
+Common rejection reasons:
+- Account not valid for the symbol's exchange
+- Price/quantity numeric type error (integer instead of float — fix: always use `5.0` not `5`)
+- TIF or OrdType not supported for the instrument
+- Position limits exceeded
+
+### Numeric Type Errors
+
+If `Quantity` or `Price` are sent as integers, the server will throw an exception. Always ensure these are serialized as floating-point in your JSON payload:
+
+```json
+// WRONG
+{ "Quantity": 5, "Price": 5500 }
+
+// CORRECT
+{ "Quantity": 5.0, "Price": 5500.25 }
+```
+
+---
+
+## Market Data Errors
+
+### Subscription Failure (Type 0 response)
+
+```json
+{
+    "ResponseType": 0,
+    "ResponseData": {
+        "SubscriptionResults": [
+            {
+                "Success": false,
+                "Username": "rival_123",
+                "GenericMarketDataSymbol": "ESZ3",
+                "Message": "Symbol not found",
+                "ExceptionError": ""
+            }
+        ]
+    }
+}
+```
+
+Always check `SubscriptionResults[n].Success` before assuming market data will arrive.
+
+---
+
+## Diagnostics Checklist
+
+1. **Auth fails:** Confirm `group`, `user`, `apikey` values with Rival. Check for extra whitespace. Verify `alg: HS512` in JWT header.
+2. **Connection drops immediately:** Verify Bearer token header is present on WebSocket upgrade. Test with `wscat` or equivalent.
+3. **No market data after subscribe:** Check Type 0 response `SubscriptionResults[0].Success`. Check for Type 21 (not entitled). Verify symbol using Instrument Search (Type 33) first.
+4. **Order rejected:** Read `Text` field in Type 8 response. Verify float types on `Quantity` and `Price`. Confirm `Account` is in your Accounts list (Type 15 response after login).
+5. **Disconnected after ~5 min idle:** Heartbeat Ping (Type 26) must be sent at least every 5 minutes.
+
+---
+
+## Contact
+
+For API issues: `rivalapisupport@rivalsystems.com`
+
+## See also
+
+- [auth-basics.md](auth-basics.md) — JWT construction
+- [connection.md](connection.md) — connect flow
+- [orders.md](orders.md) — order field requirements

@@ -1,171 +1,45 @@
 {
+  "_comment": "Rival One message type reference. Derived from the official Outline docs (Overview + Client Requests + Server Responses). Some type numbers serve dual roles as both request and response — check 'direction'. Confirm authoritative values against: https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/overview-MeKFxBVURU",
   "meta": {
-    "version": 1,
-    "description": "Maps numeric ResponseType / RequestType values to stable names and human-readable labels. Confirm against vendor docs before production.",
-    "serverResponsesDoc": "https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/server-responses-2ZB81dxqCB",
-    "clientRequestsDoc": "https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/client-requests-OKFTPUQJ6w",
-    "requestTypesNote": "requestTypesById includes only outbound types explicitly listed in this repository's skills/references/protocol.md. The full client request enumeration lives in Client Requests (Outline).",
-    "enrichment": {
-      "summary": "Wire payloads from Rival keep numeric ResponseType only. For logs, UI, or assistant-visible copies, add optional sidecar keys — never remove or replace the number.",
-      "dispatchRule": "Applications and event handlers must branch on the numeric ResponseType (or raw server JSON). Do not require parsing string names for routing.",
-      "forAgents": "When showing inbound frames to the user, always show the numeric ResponseType; you may append _responseTypeName and _responseTypeLabel (from responseTypesById) on a copy for readability.",
-      "optionalKeys": {
-        "_responseTypeName": "Stable identifier (the `name` field) for logs and human scan.",
-        "_responseTypeLabel": "Doc-style title (the `label` field).",
-        "_keyPrefixRationale": "Leading underscore reduces overlap with vendor field names in ResponseData."
-      }
-    }
+    "enrichment": "When displaying inbound JSON to a user, you may add '_responseTypeName' or '_responseTypeLabel' on a COPY for readability. Never replace the numeric 'ResponseType' — routing and dispatch must always use the number.",
+    "source": "https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/overview-MeKFxBVURU"
   },
-  "responseTypesById": {
-    "0": {
-      "name": "MarketDataSubscriptionResults",
-      "label": "Market Data Subscription Results"
-    },
-    "1": {
-      "name": "InstrumentDefinition",
-      "label": "Instrument Definition Response"
-    },
-    "2": {
-      "name": "Book",
-      "label": "Book Message"
-    },
-    "3": {
-      "name": "Error",
-      "label": "Error Message"
-    },
-    "5": {
-      "name": "TradePrice",
-      "label": "Trade Price Message"
-    },
-    "6": {
-      "name": "Statistics",
-      "label": "Statistics Message"
-    },
-    "8": {
-      "name": "OrderStatus",
-      "label": "Order Status Message"
-    },
-    "9": {
-      "name": "Authorize",
-      "label": "Authorize Response"
-    },
-    "13": {
-      "name": "UserSettings",
-      "label": "User Settings Response"
-    },
-    "14": {
-      "name": "TradeSettings",
-      "label": "Trade Settings Response"
-    },
-    "15": {
-      "name": "Accounts",
-      "label": "Accounts Response"
-    },
-    "20": {
-      "name": "PositionSummary",
-      "label": "Position Summary Response"
-    },
-    "21": {
-      "name": "NotEntitledError",
-      "label": "Not Entitled Error Message"
-    },
-    "23": {
-      "name": "SecurityNotFoundError",
-      "label": "Security Not Found Error Message"
-    },
-    "26": {
-      "name": "Pong",
-      "label": "Pong Response"
-    },
-    "31": {
-      "name": "VolumeAtLevel",
-      "label": "Volume at Level Message"
-    },
-    "33": {
-      "name": "SearchResults",
-      "label": "Search Results Response"
-    },
-    "34": {
-      "name": "OptionsDescriptions",
-      "label": "Options Descriptions Response"
-    },
-    "35": {
-      "name": "TopOfBook",
-      "label": "Top-of-Book Message"
-    },
-    "37": {
-      "name": "SessionTrade",
-      "label": "Trade Message (session trades at login)"
-    },
-    "38": {
-      "name": "AvailableBrokerRoutes",
-      "label": "Available Broker Routes Response"
-    },
-    "39": {
-      "name": "TheoAndGreeks",
-      "label": "Theo & Greeks Message"
-    },
-    "40": {
-      "name": "SpreadClassification",
-      "label": "Spread Classification Response"
-    },
-    "41": {
-      "name": "TickSizeResponse",
-      "label": "Tick Size Response Message"
-    },
-    "42": {
-      "name": "RfqFailed",
-      "label": "RFQ Failed Response Message"
-    },
-    "43": {
-      "name": "AvailableStrategies",
-      "label": "Available Strategies Response"
-    },
-    "44": {
-      "name": "Spreads",
-      "label": "Spreads Response Message"
-    },
-    "45": {
-      "name": "MarginError",
-      "label": "Margin Error Message"
-    },
-    "46": {
-      "name": "MarginResponse",
-      "label": "Margin Response Message"
-    },
-    "61": {
-      "name": "ParticipantMarketData",
-      "label": "Participant Market Data"
-    }
-  },
-  "requestTypesById": {
-    "0": {
-      "name": "MarketData",
-      "label": "Market data subscription"
-    },
-    "2": {
-      "name": "SendOrder",
-      "label": "Send order"
-    },
-    "4": {
-      "name": "ReviseOrder",
-      "label": "Revise order (cancel-replace)"
-    },
-    "8": {
-      "name": "GetAllOrders",
-      "label": "Get all orders"
-    },
-    "26": {
-      "name": "Ping",
-      "label": "Ping (heartbeat)"
-    },
-    "33": {
-      "name": "InstrumentSearch",
-      "label": "Instrument search"
-    },
-    "45": {
-      "name": "Authorize",
-      "label": "Authorize (JWT in RequestData)"
-    }
-  }
+  "types": [
+    { "type": 0,  "requestName": "Market Data",                  "responseName": "Market Data Subscription Result", "category": "Market Data",      "direction": "both" },
+    { "type": 1,  "requestName": null,                            "responseName": "Instrument Definition",           "category": "Market Data",      "direction": "response" },
+    { "type": 2,  "requestName": "Send Order",                    "responseName": "Book (depth of market)",          "category": "Orders/Market Data","direction": "both" },
+    { "type": 3,  "requestName": "Cancel Order(s)",               "responseName": "Error Message",                   "category": "Orders/Errors",    "direction": "both" },
+    { "type": 4,  "requestName": "Revise Order",                  "responseName": null,                              "category": "Orders",           "direction": "request" },
+    { "type": 5,  "requestName": "Cancel All Orders",             "responseName": "Trade Price",                     "category": "Orders/Market Data","direction": "both" },
+    { "type": 6,  "requestName": "Cancel Buy Orders",             "responseName": "Statistics",                      "category": "Orders/Market Data","direction": "both" },
+    { "type": 7,  "requestName": "Cancel Sell Orders",            "responseName": null,                              "category": "Orders",           "direction": "request" },
+    { "type": 8,  "requestName": "Get All Orders",                "responseName": "Order Status",                    "category": "Orders",           "direction": "both" },
+    { "type": 9,  "requestName": null,                            "responseName": "Authorize Response",              "category": "Authentication",   "direction": "response" },
+    { "type": 13, "requestName": "Update Trade Settings",         "responseName": "User Settings Response",          "category": "Settings",         "direction": "both" },
+    { "type": 14, "requestName": "Update User Settings",          "responseName": "Trade Settings Response",         "category": "Settings",         "direction": "both" },
+    { "type": 15, "requestName": null,                            "responseName": "Accounts Response",               "category": "Authentication",   "direction": "response" },
+    { "type": 20, "requestName": null,                            "responseName": "Position Summary",                "category": "Risk",             "direction": "response" },
+    { "type": 21, "requestName": "Delete Trade Settings",         "responseName": "Not Entitled Error",              "category": "Settings/Errors",  "direction": "both" },
+    { "type": 22, "requestName": "Get Positions",                 "responseName": null,                              "category": "Risk",             "direction": "request" },
+    { "type": 23, "requestName": null,                            "responseName": "Security Not Found Error",        "category": "Errors",           "direction": "response" },
+    { "type": 26, "requestName": "Ping",                          "responseName": "Pong",                            "category": "Connection",       "direction": "both" },
+    { "type": 31, "requestName": null,                            "responseName": "Volume at Level",                 "category": "Market Data",      "direction": "response" },
+    { "type": 33, "requestName": "Instrument Search",             "responseName": "Search Results",                  "category": "Search",           "direction": "both" },
+    { "type": 34, "requestName": "Get Options Description",       "responseName": "Options Descriptions",            "category": "Options",          "direction": "both" },
+    { "type": 35, "requestName": null,                            "responseName": "Top-of-Book",                     "category": "Market Data",      "direction": "response" },
+    { "type": 37, "requestName": "Get Spread Combinations",       "responseName": "Trade (login session replay)",    "category": "Options/Orders",   "direction": "both" },
+    { "type": 38, "requestName": "Send RFQ / Create Spread",      "responseName": "Broker Routes Response",          "category": "Options/Auth",     "direction": "both" },
+    { "type": 39, "requestName": "Get Variable Tick Size",        "responseName": "Theo & Greeks",                   "category": "Options",          "direction": "both" },
+    { "type": 40, "requestName": "Term-Market Data for Options",  "responseName": "Spread Classification Response",  "category": "Options",          "direction": "both" },
+    { "type": 41, "requestName": "Get Options Strategies",        "responseName": "Tick Size Response",              "category": "Options",          "direction": "both" },
+    { "type": 42, "requestName": "Market Data for Strategies",    "responseName": "RFQ Failed Response",             "category": "Options",          "direction": "both" },
+    { "type": 43, "requestName": "Get Margin",                    "responseName": "Available Strategies Response",   "category": "Risk/Options",     "direction": "both" },
+    { "type": 44, "requestName": null,                            "responseName": "Spreads Response",                "category": "Options",          "direction": "response" },
+    { "type": 45, "requestName": "Authorize",                     "responseName": "Margin Error Response",           "category": "Auth/Risk",        "direction": "both" },
+    { "type": 46, "requestName": null,                            "responseName": "Margin Response",                 "category": "Risk",             "direction": "response" },
+    { "type": 49, "requestName": "Enter/Edit/Delete Manual Trade","responseName": null,                              "category": "Trades",           "direction": "request" },
+    { "type": 53, "requestName": "Get Theos and Greeks",          "responseName": null,                              "category": "Options",          "direction": "request" },
+    { "type": 58, "requestName": "Depth Data",                    "responseName": null,                              "category": "Market Data",      "direction": "request" },
+    { "type": 61, "requestName": null,                            "responseName": "Participant Market Data",         "category": "Market Data",      "direction": "response" }
+  ]
 }

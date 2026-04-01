@@ -1,0 +1,362 @@
+{
+  "_comment": "Sanitized example payloads derived from the official Rival One Outline documentation. Use these as reference when generating or validating client code. All credentials are placeholders.",
+  "source": "https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/rival-websocket-api-kFEIQKQvp0",
+
+  "auth": {
+    "authorize_request": {
+      "RequestType": 45,
+      "RequestData": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.<payload>.<signature>"
+    },
+    "authorize_response_success": {
+      "ResponseType": 9,
+      "ResponseData": {
+        "IsAuthorized": true,
+        "ErrorMessage": "",
+        "Role": "API User"
+      }
+    },
+    "authorize_response_failure": {
+      "ResponseType": 9,
+      "ResponseData": {
+        "IsAuthorized": false,
+        "ErrorMessage": "API user not registered with the system | Grp=[FIRM.GROUP], User=[jsmith]",
+        "Role": ""
+      }
+    },
+    "accounts_response": {
+      "ResponseType": 15,
+      "ResponseData": [
+        "TEST-FUT-01",
+        "TEST-EQT-01",
+        "TEST-OPT-01"
+      ]
+    },
+    "broker_routes_response": {
+      "ResponseType": 38,
+      "ResponseData": [
+        "VELOCITY : VWAP : 616",
+        "VELOCITY : INST : 617",
+        "VELOCITY : TWAP : 618"
+      ]
+    }
+  },
+
+  "heartbeat": {
+    "ping_request": {
+      "RequestType": 26,
+      "RequestData": "123456789"
+    },
+    "pong_response": {
+      "ResponseType": 26,
+      "ResponseData": "123456789"
+    }
+  },
+
+  "instrument_search": {
+    "request": {
+      "RequestType": 33,
+      "RequestData": {
+        "searchId": "d798b02a-8c3e-42f8-919c-c04ec16cf0de",
+        "searchVal": "ESH",
+        "selectedVals": []
+      }
+    },
+    "response": {
+      "ResponseType": 33,
+      "ResponseData": {
+        "SearchId": "d798b02a-8c3e-42f8-919c-c04ec16cf0de",
+        "SearchResults": [
+          {
+            "name": "ESZ5",
+            "longName": "E-mini Standard and Poor's 500 Stock Price Index Futures",
+            "exchange": "CME",
+            "category": "Symbols",
+            "baseSymbol": null,
+            "baseSymbolExchange": null,
+            "secType": 3
+          }
+        ],
+        "ComponentLinking": null
+      }
+    }
+  },
+
+  "market_data": {
+    "subscribe_request": {
+      "RequestType": 0,
+      "RequestData": {
+        "GenericMarketDataSymbol": "ESZ5"
+      }
+    },
+    "subscription_result_success": {
+      "ResponseType": 0,
+      "ResponseData": {
+        "SubscriptionResults": [
+          {
+            "Success": true,
+            "Username": "rival_123",
+            "GenericMarketDataSymbol": "ESZ5"
+          }
+        ]
+      }
+    },
+    "subscription_result_failure": {
+      "ResponseType": 0,
+      "ResponseData": {
+        "SubscriptionResults": [
+          {
+            "Success": false,
+            "Username": "rival_123",
+            "GenericMarketDataSymbol": "ESZ3",
+            "Message": "Symbol not found",
+            "ExceptionError": ""
+          }
+        ]
+      }
+    },
+    "instrument_definition": {
+      "ResponseType": 1,
+      "ResponseData": {
+        "SecurityInfo": {
+          "SecurityType": "F",
+          "BaseSymbol": "ES",
+          "Ticker": "ESZ5",
+          "Exchange": "CME",
+          "Strike": 0,
+          "Expiration": "2025-12-19",
+          "ContractSize": 50,
+          "PutCall": "",
+          "TickSize": 0.25,
+          "GenericMdSymbol": "ESZ5",
+          "DataSourceInfo": "",
+          "SpcStlFlag": "",
+          "CurrencyCode": "USD",
+          "ExerType": "",
+          "InstrumentId": "14682167109910674611",
+          "UnderlyingInstrumentId": "",
+          "LongName": "E-mini Standard and Poor's 500 Stock Price Index Futures",
+          "ObsoleteDateTime": "",
+          "UnderlyingExpirationDate": "",
+          "RoninSymbol": "F:ES:251201:CME",
+          "IssueDate": "",
+          "InrstAcuralDate": "",
+          "FirstCouponDate": "",
+          "Cusip": "",
+          "Coupon": 0,
+          "Redemption": 0,
+          "NotionalAmount": 0,
+          "CouponFreq": 0,
+          "DisplayFormat": "",
+          "ExpYear": 2025,
+          "ExpMonth": 12,
+          "ExpDay": 19,
+          "DecimalPrecision": 0,
+          "Conversion": 0,
+          "ExpirationTime": "1766154600",
+          "TicksizeTableId": "0:0.010000",
+          "ProductGroupDesc": "",
+          "SuggestedUnderlying": "",
+          "ActivationTime": "1622842200"
+        },
+        "SpreadDefinition": null,
+        "SpreadLegs": null
+      }
+    },
+    "book": {
+      "ResponseType": 2,
+      "ResponseData": {
+        "Symbol": "ESZ5",
+        "Feed": "CME",
+        "Bids": [
+          { "Price": 5900.25, "Size": 100 },
+          { "Price": 5900.00, "Size": 150 },
+          { "Price": 5899.75, "Size": 200 }
+        ],
+        "Asks": [
+          { "Price": 5900.50, "Size": 100 },
+          { "Price": 5900.75, "Size": 150 },
+          { "Price": 5901.00, "Size": 200 }
+        ]
+      }
+    },
+    "top_of_book": {
+      "ResponseType": 35,
+      "ResponseData": {
+        "Symbol": "ESZ5",
+        "Exchange": "CME",
+        "TopBid": { "Price": 5900.25, "Size": 100 },
+        "TopAsk": { "Price": 5900.50, "Size": 100 }
+      }
+    },
+    "trade_price": {
+      "ResponseType": 5,
+      "ResponseData": {
+        "Symbol": "ESZ5",
+        "Feed": "CME",
+        "LastPrice": 5900.25,
+        "LastSize": 150,
+        "CumulativeTradeQuantity": 750,
+        "ExchangeTime": 1704920400,
+        "IsOTC": false,
+        "IsLeg": false,
+        "VolumeAtLevel": 200
+      }
+    },
+    "statistics": {
+      "ResponseType": 6,
+      "ResponseData": {
+        "Symbol": "ESZ5",
+        "Feed": "CME",
+        "SettlementPrice": 5900.0,
+        "OpeningPrice": 5895.50,
+        "DailyLowPrice": 5880.0,
+        "DailyHighPrice": 5915.0,
+        "ExchangeTime": 1704920400
+      }
+    },
+    "volume_at_level": {
+      "ResponseType": 31,
+      "ResponseData": {
+        "Symbol": "ESZ5",
+        "Feed": "CME",
+        "MaxVolume": 1596,
+        "PriceToVolume": {
+          "5900.0": 15,
+          "5900.25": 1596,
+          "5900.5": 220
+        }
+      }
+    }
+  },
+
+  "orders": {
+    "send_order_request": {
+      "RequestType": 2,
+      "RequestData": {
+        "Quantity": 5.0,
+        "Price": "5500.25",
+        "GenericMarketDataSymbol": "ESZ5",
+        "Side": "1",
+        "ShowQty": 0.0,
+        "Account": "RIVAL_12345",
+        "TIF": "1",
+        "OrdType": "2",
+        "UserTicketSourceCode": 13,
+        "ApiUserOrderId": "my_ord_001"
+      }
+    },
+    "revise_order_request": {
+      "RequestType": 4,
+      "RequestData": {
+        "Tag": "test-TEST-40040-1764686958",
+        "Price": 5900.5,
+        "Quantity": 1.0,
+        "ShowQty": 0.0,
+        "Side": 1,
+        "StopPrice": 0.0,
+        "IsSpreaderOrder": false,
+        "TicketSource": 13,
+        "GenericMarketDataSymbol": "ESZ5"
+      }
+    },
+    "cancel_order_request": {
+      "RequestType": 3,
+      "RequestData": {
+        "Tags": ["test-TEST-40040-1764686958"]
+      }
+    },
+    "cancel_all_orders_request": {
+      "RequestType": 5,
+      "RequestData": {
+        "GenericMarketDataSymbol": "ESZ5"
+      }
+    },
+    "order_status_pending": {
+      "ResponseType": 8,
+      "ResponseData": {
+        "TimestampStr": "2024-12-26T18:58:05Z",
+        "Tag": "ngen01-32122-1703544077-api:my_ord_001",
+        "GmdSymbol": "ESZ5",
+        "Shares": 5.0,
+        "Price": 5500.25,
+        "OrderType": 2,
+        "Side": 1,
+        "TimeInForce": 1,
+        "TraderName": "jsmith",
+        "ClearingAccount": "RIVAL_12345",
+        "OrderStatus": -1,
+        "LeaveShares": 5.0,
+        "LastShares": 0.0,
+        "Text": "",
+        "StopPrice": 0.0,
+        "ShowQty": 0.0,
+        "TickSize": 0.25
+      }
+    },
+    "order_status_open": {
+      "ResponseType": 8,
+      "ResponseData": {
+        "TimestampStr": "2024-12-26T18:58:06Z",
+        "Tag": "ngen01-32122-1703544077-api:my_ord_001",
+        "GmdSymbol": "ESZ5",
+        "Shares": 5.0,
+        "Price": 5500.25,
+        "OrderType": 2,
+        "Side": 1,
+        "TimeInForce": 1,
+        "TraderName": "jsmith",
+        "ClearingAccount": "RIVAL_12345",
+        "OrderStatus": 12,
+        "LeaveShares": 5.0,
+        "LastShares": 0.0,
+        "Text": "",
+        "StopPrice": 0.0,
+        "ShowQty": 0.0,
+        "TickSize": 0.25
+      }
+    },
+    "order_status_filled": {
+      "ResponseType": 8,
+      "ResponseData": {
+        "TimestampStr": "2024-12-26T18:58:10Z",
+        "Tag": "ngen01-32122-1703544077-api:my_ord_001",
+        "GmdSymbol": "ESZ5",
+        "Shares": 5.0,
+        "Price": 5500.25,
+        "OrderType": 2,
+        "Side": 1,
+        "TimeInForce": 1,
+        "TraderName": "jsmith",
+        "ClearingAccount": "RIVAL_12345",
+        "OrderStatus": 2,
+        "LeaveShares": 0.0,
+        "LastShares": 5.0,
+        "Text": "",
+        "StopPrice": 0.0,
+        "ShowQty": 0.0,
+        "TickSize": 0.25
+      }
+    }
+  },
+
+  "errors": {
+    "generic_error": {
+      "ResponseType": 3,
+      "ResponseData": "Ran into an issue"
+    },
+    "not_entitled": {
+      "ResponseType": 21,
+      "ResponseData": {
+        "ErrorMessage": "Ran into an issue because user is not entitled",
+        "Symbol": "ESZ5"
+      }
+    },
+    "security_not_found": {
+      "ResponseType": 23,
+      "ResponseData": {
+        "ErrorMessage": "This contract is either expired or your request symbol is malformed",
+        "Symbol": "ESZ3"
+      }
+    }
+  }
+}

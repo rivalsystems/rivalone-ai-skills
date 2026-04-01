@@ -1,121 +1,156 @@
-# Bundle: connection — WebSocket and heartbeat
+# Bundle: connection — Connect, Authorize, Heartbeat
 
-## Steps
+> **Source:** [Overview](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/overview-MeKFxBVURU) · [Client Requests](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/client-requests-OKFTPUQJ6w)
 
-1. Build or load the JWT (see [auth-basics.md](auth-basics.md)).
-2. Open a **WebSocket** to your environment URL (SIM example: `wss://sim-api.rivalsystems.cloud:50443`).
-3. Set request header: `Authorization: Bearer <JWT>`.
-4. After `open`, send **Authorize**: `{ "RequestType": 45, "RequestData": "<same JWT string>" }` (confirm `RequestType` in [Client Requests](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/client-requests-OKFTPUQJ6w)).
-5. Start a **timer** to send **Ping** (`RequestType` **26**) every N seconds (often **240**; confirm in [Overview](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/overview-MeKFxBVURU)). `RequestData` is often a string id (e.g. UUID).
+## Endpoints
 
-> TLS succeeding does **not** prove auth. Wait for vendor **authorize response** (e.g. response indicating authorized) before assuming the session is valid.
+| Environment | URL |
+|-------------|-----|
+| **Simulation** | `wss://sim-api.rivalsystems.cloud:50443` |
+| **Production** | `wss://prod-api.rivalsystems.cloud:60443` |
 
-## TLS trust and corporate SSL inspection
+## Connection Requirements
 
-If the client fails **before** the WebSocket upgrade with errors such as **`certificate verify failed`** or **`unable to get issuer certificate`** (exact text depends on OS and TLS stack), the TLS path is often broken by **corporate SSL inspection**: a proxy or gateway terminates TLS and re-encrypts using a certificate signed by an **internal CA** that is not in your runtime’s default trust store.
+- **Bearer token required on connect** — include the JWT as `Authorization: Bearer <jwt>` in the WebSocket upgrade headers. Connections without this header are terminated immediately.
+- **Heartbeat required** — send a Ping (Type 26) at least every **5 minutes** or the server will disconnect you. A 240-second interval is a safe default.
+- **One WebSocket for everything** — market data and orders share the same connection. Do not open separate sockets per feature. See [../references/protocol.md](../references/protocol.md).
+- **All field names and values are case-sensitive** unless the docs explicitly note otherwise.
+- **All prices and quantities are floating-point.** Using integer/long parsing will cause server-side exceptions.
 
-**Preferred fix (any language):**
+## Connection + Auth Flow
 
-1. Get the **root and/or issuing CA** your IT team uses for inspection (usually PEM or a trust bundle they publish).
-2. Either **install that CA into the system or runtime trust store** used by your process, **or** configure your WebSocket/TLS client to **load a custom CA file or bundle** when opening `wss://` (the setting name differs by library: trust anchors, `ca_file`, custom `X509Store`, etc.—follow your stack’s docs).
+```
+1. Build JWT  (see auth-basics.md)
+2. Open WSS   with header: Authorization: Bearer <jwt>
+3. Send       { "RequestType": 45, "RequestData": "<jwt>" }
+4. Receive    Type 9  (Authorize response — IsAuthorized: true/false)
+              Type 13 (User settings — auto-pushed on success)
+              Type 14 (Trade settings — auto-pushed on success)
+              Type 15 (Accounts — auto-pushed on success)
+              Type 38 (Broker routes — auto-pushed on success)
+5. Start      heartbeat loop: Ping (Type 26) every 240 s
+```
 
-**Avoid in production:** Turning off certificate verification entirely. Rival’s sample Python client documents this only as a last resort; treat it as a temporary diagnostic, not a shipping configuration. For one worked example of optional config keys (`ca_cert_file`, `disable_ssl_verification`), see [Outline — Python example](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/python-example-qlh5BEqaQV).
+## Ping / Pong (Type 26)
 
-More symptom-oriented notes: [errors-troubleshooting.md](errors-troubleshooting.md).
+Send to keep the connection alive. The optional `RequestData` is a request ID reflected back in the pong — useful for latency measurement.
 
-## Python (websockets)
+```json
+{ "RequestType": 26, "RequestData": "123456789" }
+```
 
-Uses `websockets` async client; send authorize immediately after connect.
+Pong response:
+```json
+{ "ResponseType": 26, "ResponseData": "123456789" }
+```
+
+## Python Example
 
 ```python
 import asyncio
-import json
-import uuid
+import os
+import jwt
 import websockets
 
-async def run(url: str, jwt_token: str, ping_interval: float = 240.0):
-    headers = [("Authorization", f"Bearer {jwt_token}")]
+async def connect():
+    token = build_jwt(
+        api_key=os.environ["RIVAL_ONE_API_KEY"],
+        secret_key=os.environ["RIVAL_ONE_SECRET_KEY"],
+        group=os.environ["RIVAL_ONE_GROUP"],
+        user=os.environ["RIVAL_ONE_USER"],
+    )
+    url = os.environ.get("RIVAL_ONE_WSS_URL", "wss://sim-api.rivalsystems.cloud:50443")
+    headers = {"Authorization": f"Bearer {token}"}
+
     async with websockets.connect(url, additional_headers=headers) as ws:
-        await ws.send(json.dumps({"RequestType": 45, "RequestData": jwt_token}))
+        # Authorize
+        await ws.send(json.dumps({"RequestType": 45, "RequestData": token}))
 
-        async def ping_loop():
+        # Heartbeat task
+        async def heartbeat():
             while True:
-                await asyncio.sleep(ping_interval)
-                await ws.send(json.dumps({"RequestType": 26, "RequestData": str(uuid.uuid4())}))
+                await asyncio.sleep(240)
+                await ws.send(json.dumps({"RequestType": 26, "RequestData": "hb"}))
 
-        ping_task = asyncio.create_task(ping_loop())
-        try:
-            async for raw in ws:
-                msg = json.loads(raw)
-                # handle messages
-                _ = msg
-        finally:
-            ping_task.cancel()
+        asyncio.create_task(heartbeat())
 
-# asyncio.run(run(wss_url, token))
+        # Receive loop
+        async for raw in ws:
+            msg = json.loads(raw)
+            await handle(msg)
 ```
 
-Install: `pip install websockets`
-
-## TypeScript (ws)
+## TypeScript / Node Example
 
 ```typescript
 import WebSocket from "ws";
-import { randomUUID } from "node:crypto";
 
-export function connectRival(url: string, jwtToken: string, pingSeconds = 240): WebSocket {
-  const ws = new WebSocket(url, { headers: { Authorization: `Bearer ${jwtToken}` } });
-  ws.on("open", () => {
-    ws.send(JSON.stringify({ RequestType: 45, RequestData: jwtToken }));
-    setInterval(() => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ RequestType: 26, RequestData: randomUUID() }));
-      }
-    }, Math.max(1000, pingSeconds * 1000));
+async function connect(token: string, url: string) {
+  const ws = new WebSocket(url, {
+    headers: { Authorization: `Bearer ${token}` },
   });
-  return ws;
+
+  ws.on("open", () => {
+    // Authorize
+    ws.send(JSON.stringify({ RequestType: 45, RequestData: token }));
+
+    // Heartbeat
+    setInterval(() => {
+      ws.send(JSON.stringify({ RequestType: 26, RequestData: Date.now() }));
+    }, 240_000);
+  });
+
+  ws.on("message", (data) => {
+    const msg = JSON.parse(data.toString());
+    handle(msg);
+  });
 }
 ```
 
-Install: `npm install ws`, `@types/ws`
-
-## C# (ClientWebSocket)
+## C# Example
 
 ```csharp
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 
-static async Task RunAsync(Uri uri, string jwt, TimeSpan pingInterval, CancellationToken ct)
-{
-    using var ws = new ClientWebSocket();
-    ws.Options.SetRequestHeader("Authorization", $"Bearer {jwt}");
-    await ws.ConnectAsync(uri, ct);
-    var auth = JsonSerializer.Serialize(new { RequestType = 45, RequestData = jwt });
-    await ws.SendAsync(Encoding.UTF8.GetBytes(auth), WebSocketMessageType.Text, true, ct);
+var token = BuildJwt(apiKey, secretKey, group, user);
+var uri = new Uri("wss://sim-api.rivalsystems.cloud:50443");
 
-    _ = Task.Run(async () =>
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            await Task.Delay(pingInterval, ct);
-            var ping = JsonSerializer.Serialize(new { RequestType = 26, RequestData = Guid.NewGuid().ToString() });
-            await ws.SendAsync(Encoding.UTF8.GetBytes(ping), WebSocketMessageType.Text, true, ct);
-        }
-    }, ct);
+using var ws = new ClientWebSocket();
+ws.Options.SetRequestHeader("Authorization", $"Bearer {token}");
+await ws.ConnectAsync(uri, CancellationToken.None);
 
-    // receive loop: ReceiveAsync(...)
+// Authorize
+await SendAsync(ws, new { RequestType = 45, RequestData = token });
+
+// Heartbeat
+_ = Task.Run(async () => {
+    while (ws.State == WebSocketState.Open) {
+        await Task.Delay(240_000);
+        await SendAsync(ws, new { RequestType = 26, RequestData = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
+    }
+});
+
+// Receive loop
+var buffer = new byte[65536];
+while (ws.State == WebSocketState.Open) {
+    var result = await ws.ReceiveAsync(buffer, CancellationToken.None);
+    var json = Encoding.UTF8.GetString(buffer, 0, result.Count);
+    Handle(JsonSerializer.Deserialize<JsonElement>(json));
 }
 ```
 
-## Reconnect guidance
+## TLS Trust and Corporate SSL Inspection
 
-- Back off reconnects; on reconnect, repeat JWT header + authorize + ping loop.
-- Do not send trading or market-data messages until the session is authorized per vendor responses.
+If `wss://` fails with certificate or issuer errors on your network, your organization may be performing TLS inspection. Options:
+
+- **Python (websockets/aiohttp):** pass `ssl=ctx` where `ctx` is an `ssl.SSLContext` loaded with your corp CA bundle via `ctx.load_verify_locations(cafile="/path/to/corp-ca.pem")`
+- **Node.js:** set `ca` in the WebSocket options or set `NODE_EXTRA_CA_CERTS=/path/to/corp-ca.pem`
+- **C#:** install the corp CA into the Windows/system certificate store, or pass a custom `HttpClientHandler` with `ServerCertificateCustomValidationCallback`
 
 ## See also
 
-- [../references/protocol.md#single-websocket-for-market-data-and-orders](../references/protocol.md#single-websocket-for-market-data-and-orders) — market data and orders on one connection
-- [Rival WebSocket API](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/rival-websocket-api-kFEIQKQvp0)
-- [../references/workflows.md](../references/workflows.md)
-- [errors-troubleshooting.md](errors-troubleshooting.md)
+- [auth-basics.md](auth-basics.md) — JWT construction
+- [../references/protocol.md](../references/protocol.md) — message envelope + one-socket rule
+- [errors-troubleshooting.md](errors-troubleshooting.md) — connection failures

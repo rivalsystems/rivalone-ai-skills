@@ -1,92 +1,155 @@
-# Rival One — protocol reference
+# Rival One — Protocol Reference
 
-> **Source of truth:** [Client Requests](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/client-requests-OKFTPUQJ6w) (Outline). Confirm message numbers and field shapes there before production.
->
-> **Overview & common errors:** [Overview](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/overview-MeKFxBVURU) — endpoints, heartbeat, and login errors. Repo notes: [`docs/troubleshooting.md`](../../docs/troubleshooting.md).
->
-> **WebSocket API (Outline):** [Rival WebSocket API](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/rival-websocket-api-kFEIQKQvp0) — index to Overview, Client Requests, Server Responses, and related pages.
->
-> **Server messages:** [Server Responses](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/server-responses-2ZB81dxqCB) — `ResponseType` numbers and `ResponseData` shapes.
+> **Source:** [Overview](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/overview-MeKFxBVURU) · [Client Requests](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/client-requests-OKFTPUQJ6w) · [Server Responses](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/server-responses-2ZB81dxqCB)
 
-## Message type lookup (JSON)
+---
 
-Inbound frames use `{ "ResponseType": <number>, "ResponseData": ... }`. For quick demux and logging, use **[`message-types.json`](message-types.json)**:
+## Message Envelope
 
-- **`responseTypesById`** — string keys (`"0"`, `"8"`, …) → `{ "name", "label" }` (stable `name` for code branches; `label` matches the vendor doc title where possible).
-- **`requestTypesById`** — partial list of outbound types also documented in this file; extend from [Client Requests](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/client-requests-OKFTPUQJ6w).
-
-Reconcile any new or changed numbers with Outline before production (`meta` in the JSON points at the canonical pages).
-
-### Enrichment for display (optional)
-
-The server only sends the **numeric** `ResponseType`. **Keep that number** on the object your app uses for routing, events, and `switch`/`match` — users and integrations should **not** depend on parsing a string instead of the number.
-
-For **logs, UI, or assistant-visible copies**, you may **add** optional sidecar keys (see `meta.enrichment` in the JSON), e.g. **`_responseTypeName`** and **`_responseTypeLabel`**, copied from `responseTypesById`. Use a **shallow copy** of the frame so wire-format records stay vendor-pure if you persist them. Leading underscore avoids clashing with fields inside `ResponseData`.
-
-## Transport
-
-- **WebSocket** URL from `RIVAL_ONE_WSS_URL` (default SIM: `wss://sim-api.rivalsystems.cloud:50443`).
-- Handshake header: **`Authorization: Bearer <JWT>`** where `<JWT>` is a complete HS512 JWT (see Authorize below).
-
-## Single WebSocket for market data and orders
-
-Use **one** authenticated WebSocket for the whole session unless Rival’s documentation explicitly tells you to open additional connections.
-
-- **Market data “threads” in your app** are usually **concurrent tasks or queues** (per symbol, book, or strategy) that all attach to the **same** socket. You send multiple **Market data** requests (`RequestType` **0**, shapes per Client Requests) on that connection; inbound ticks and book updates arrive on the same socket as order acknowledgements and other responses.
-- **Orders** (**Send** `RequestType` **2**, **Revise** **4**, etc.) use the **same** connection. Do not split “data plane” and “order plane” into two sockets unless the product requires it.
-- **Implementation pattern:** one **receive** loop that parses JSON and **demultiplexes** to handlers (by `ResponseType`, symbol, correlation id, or fields your vendor doc defines). One **send** path: serialize outbound frames (mutex, single writer task, or outbound queue) because many WebSocket clients are **not** thread-safe for concurrent `send`.
-- **Heartbeat** (**Ping**, `RequestType` **26**) also runs on this same connection.
-
-Details and examples: [`../catalog/market-data.md`](../catalog/market-data.md), [`../catalog/orders.md`](../catalog/orders.md).
-
-## Message envelope
-
-All client messages use:
+All messages are JSON. Client-to-server:
 
 ```json
 {
-  "RequestType": <number>,
-  "RequestData": <payload>
+    "RequestType": <number>,
+    "RequestData": <payload>
 }
 ```
 
-`RequestData` type depends on the request (string JWT for authorize, object for orders, etc.).
+Server-to-client:
 
-## Authorize (RequestType 45)
+```json
+{
+    "ResponseType": <number>,
+    "ResponseData": <payload>
+}
+```
 
-Per [Client Requests — Authorize Request](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/client-requests-OKFTPUQJ6w):
+**Always route and dispatch on the numeric type.** Do not parse string labels for control flow. `_responseTypeName` / `_responseTypeLabel` may be added to a copy for readability, but routing stays on the number.
 
-1. Build a **JWT** with **HS512**, header `alg: HS512`, `typ: JWT`.
-2. Payload claims include at least: `group`, `user`, `apikey` (and typically `sub`). When your onboarding requires it, add optional login claim **`firm`**—see [`../catalog/auth-basics.md`](../catalog/auth-basics.md).
-3. Sign with your **secret key** (HMAC-SHA512).
-4. Use the same JWT string for:
-   - the WebSocket **Bearer** header, and
-   - **`RequestData`** on the authorize message: `{ "RequestType": 45, "RequestData": "<jwt>" }`.
+---
 
-Your application can build that JWT from `RIVAL_ONE_API_KEY`, `RIVAL_ONE_SECRET_KEY`, `RIVAL_ONE_GROUP`, and `RIVAL_ONE_USER`, optionally adding claim **`firm`** from `RIVAL_ONE_FIRM` when Rival instructs you to (or load a pre-built JWT from `RIVAL_ONE_API_TOKEN`). See [`../catalog/auth-basics.md`](../catalog/auth-basics.md) for language examples.
+## One WebSocket for Everything
 
-## Session
+- **One authorized connection** handles both market data and orders.
+- Do not open a second WebSocket for market data subscriptions.
+- Implement a **single receive loop** that demuxes on `ResponseType`.
+- **Serialize all sends**: subscriptions, pings, and orders must go through a single sender / queue. Concurrent sends on a WebSocket are not safe in most libraries.
 
-| RequestType (default) | Name | Notes |
-|----------------------|------|--------|
-| 45 | Authorize | `RequestData` = JWT string |
-| 26 | Ping | `RequestData` optional request id (string) |
+---
 
-## Trading (examples)
+## Connection Requirements
 
-| RequestType (default) | Name | Notes |
-|----------------------|------|--------|
-| 2 | Send order | `RequestData` object; `Quantity` / `Price` as JSON numbers |
-| 4 | Revise order | Cancel-replace; do not set `GroupName` in client payloads |
-| 8 | Get all orders | Per vendor doc |
+| Requirement | Detail |
+|---|---|
+| Transport | `wss://` (TLS) |
+| Auth header on connect | `Authorization: Bearer <jwt>` — required, connection terminated without it |
+| Heartbeat | Ping (Type 26) at least every **5 minutes** — server disconnects on timeout |
+| Data types | All prices and quantities **must be floating-point**. Integer types cause server exceptions. |
+| Case sensitivity | All field names and values are **case-sensitive** unless explicitly noted |
+| Timestamps | All timestamps are **UTC epoch seconds** unless noted |
 
-## Market data / search (examples)
+---
 
-| RequestType (default) | Name | Notes |
-|----------------------|------|--------|
-| 0 | Market data | `RequestData` per vendor |
-| 33 | Instrument search | `RequestData` per vendor |
+## Endpoints
 
-## Numeric coercion
+| Environment | URL |
+|---|---|
+| Simulation | `wss://sim-api.rivalsystems.cloud:50443` |
+| Production | `wss://prod-api.rivalsystems.cloud:60443` |
 
-At the boundary, coerce `Quantity` and `Price` with `float(...)` (Python) / `Number()` (TS) / `double` (C#) and serialize as JSON numbers where the API expects numbers.
+---
+
+## CME Sub-Exchange Identifiers
+
+| Sub-Exchange | Use this string |
+|---|---|
+| Globex | `CME` |
+| Nymex | `CME-NYMEX` |
+| Comex | `CME-COMEX` |
+| CBOT | `CME-CBOT` |
+| MGE | `CME-MGE` |
+
+All ICE sub-exchanges use `ICE`.
+
+---
+
+## Complete Message Type Reference
+
+> **NOTE:** Some type numbers are shared between requests and responses with different meanings (e.g. Type 2 is both "Book" response and "Send Order" request). Always check direction.
+
+| Type | Request Name | Response Name | Category |
+|------|-------------|---------------|----------|
+| 0 | Market Data (subscribe) | Market Data Subscription Result | Market Data |
+| 1 | — | Instrument Definition | Market Data |
+| 2 | Send Order | Book (depth of market) | Orders / Market Data |
+| 3 | Cancel Order(s) | Error Message | Orders / Errors |
+| 4 | Revise Order | — | Orders |
+| 5 | Cancel All Orders | Trade Price | Orders / Market Data |
+| 6 | Cancel Buy Orders | Statistics | Orders / Market Data |
+| 7 | Cancel Sell Orders | — | Orders |
+| 8 | Get All Orders | Order Status | Orders |
+| 9 | — | Authorize Response | Authentication |
+| 13 | Update Trade Settings | User Settings Response | Settings |
+| 14 | Update User Settings | Trade Settings Response | Settings |
+| 15 | — | Accounts Response | Authentication |
+| 20 | — | Position Summary | Risk |
+| 21 | Delete Trade Settings | Not Entitled Error | Settings / Errors |
+| 22 | Get Positions | — | Risk |
+| 23 | — | Security Not Found Error | Errors |
+| 26 | Ping | Pong | Connection |
+| 31 | — | Volume at Level | Market Data |
+| 33 | Instrument Search | Search Results | Search |
+| 34 | Get Options Description | Options Descriptions | Options |
+| 35 | — | Top-of-Book | Market Data |
+| 37 | Get Spread Combinations | Trade (login replay) | Options / Orders |
+| 38 | Send RFQ / Create Spread | Broker Routes Response | Options / Authentication |
+| 39 | Get Theos and Greeks | Variable Tick Size Response | Options |
+| 40 | Term-Market Data for Options | Spread Classification Response | Options |
+| 41 | Get Options Strategies | Tick Size Response | Options |
+| 42 | Market Data for Strategies | RFQ Failed Response | Options |
+| 43 | Get Margin | Available Strategies Response | Risk / Options |
+| 44 | — | Spreads Response | Options |
+| 45 | Authorize | Margin Error Response | Authentication / Risk |
+| 46 | — | Margin Response | Risk |
+| 49 | Enter/Edit/Delete Manual Trade | — | Trades |
+| 53 | Get Theos and Greeks (specific) | — | Options |
+| 58 | Depth Data | — | Market Data |
+| 61 | — | Participant Market Data | Market Data |
+
+---
+
+## Connection Sequence (canonical)
+
+```
+Client                                  Server
+  |                                        |
+  |-- WSS connect (Bearer: <jwt>) -------> |
+  |-- { RequestType: 45, RequestData: jwt }|
+  |                                        |
+  |<-- { ResponseType: 9, IsAuthorized }---|  Authorize result
+  |<-- { ResponseType: 13 } ---------------|  User settings (auto-pushed)
+  |<-- { ResponseType: 14 } ---------------|  Trade settings (auto-pushed)
+  |<-- { ResponseType: 15 } ---------------|  Accounts (auto-pushed)
+  |<-- { ResponseType: 38 } ---------------|  Broker routes (auto-pushed)
+  |                                        |
+  |-- { RequestType: 33, searchVal: "ES" } |  Instrument search
+  |<-- { ResponseType: 33, results }-------|
+  |                                        |
+  |-- { RequestType: 0, symbol: "ESZ5" }   |  Subscribe market data
+  |<-- { ResponseType: 1 } ----------------|  Instrument definition
+  |<-- { ResponseType: 2 } ----------------|  Book (streaming)
+  |<-- { ResponseType: 5 } ----------------|  Trade (streaming)
+  |<-- { ResponseType: 6 } ----------------|  Statistics (streaming)
+  |                                        |
+  |-- { RequestType: 26 } (every 240s) --> |  Ping / heartbeat
+  |<-- { ResponseType: 26 } ---------------|  Pong
+```
+
+---
+
+## Safety Rules
+
+- **`GroupName` is immutable.** Rival assigns it. Do not set or change it in client messages; strip any user attempt to override it.
+- **Never embed secrets in source code.** Use `RIVAL_ONE_*` environment variables or a secret manager.
+- **`UserTicketSourceCode`:** Use `13` for manual/click orders, `26` for automated orders. Required on every Send Order (Type 2) request.
+- **`ApiUserOrderId`:** Optional but recommended — max 10 bytes — reflected back in order `Tag` for correlation.
