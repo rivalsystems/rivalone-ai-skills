@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "description": "Index of Rival One implementation guides under skills/catalog/. Validated by scripts/validate_catalog.py.",
+  "bundles": [
+    {
+      "id": "auth-basics",
+      "title": "JWT authentication (HS512)",
+      "summary": "Build or load the Bearer token; same string authorizes over the socket (RequestType 45).",
+      "path": "auth-basics.md",
+      "languages": ["python", "typescript", "csharp"]
+    },
+    {
+      "id": "connection",
+      "title": "WebSocket connection and heartbeat",
+      "summary": "Open WSS with Authorization header, send authorize, then ping on an interval.",
+      "path": "connection.md",
+      "languages": ["python", "typescript", "csharp"]
+    },
+    {
+      "id": "market-data",
+      "title": "Instrument search and market data",
+      "summary": "Search (33), multiple subscriptions (0) on one WebSocket with orders; demux inbound, serialize sends.",
+      "path": "market-data.md",
+      "languages": ["python", "typescript"]
+    },
+    {
+      "id": "orders",
+      "title": "Send and revise orders",
+      "summary": "Send order (2) with float Quantity/Price; revise (4) without setting GroupName.",
+      "path": "orders.md",
+      "languages": ["python", "typescript", "csharp"]
+    },
+    {
+      "id": "errors-troubleshooting",
+      "title": "Common errors and checks",
+      "summary": "Auth vs TLS, group/user mismatches, and where to read more.",
+      "path": "errors-troubleshooting.md",
+      "languages": []
+    }
+  ]
+}

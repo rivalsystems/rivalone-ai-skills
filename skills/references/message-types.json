@@ -1,0 +1,171 @@
+{
+  "meta": {
+    "version": 1,
+    "description": "Maps numeric ResponseType / RequestType values to stable names and human-readable labels. Confirm against vendor docs before production.",
+    "serverResponsesDoc": "https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/server-responses-2ZB81dxqCB",
+    "clientRequestsDoc": "https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/client-requests-OKFTPUQJ6w",
+    "requestTypesNote": "requestTypesById includes only outbound types explicitly listed in this repository's skills/references/protocol.md. The full client request enumeration lives in Client Requests (Outline).",
+    "enrichment": {
+      "summary": "Wire payloads from Rival keep numeric ResponseType only. For logs, UI, or assistant-visible copies, add optional sidecar keys — never remove or replace the number.",
+      "dispatchRule": "Applications and event handlers must branch on the numeric ResponseType (or raw server JSON). Do not require parsing string names for routing.",
+      "forAgents": "When showing inbound frames to the user, always show the numeric ResponseType; you may append _responseTypeName and _responseTypeLabel (from responseTypesById) on a copy for readability.",
+      "optionalKeys": {
+        "_responseTypeName": "Stable identifier (the `name` field) for logs and human scan.",
+        "_responseTypeLabel": "Doc-style title (the `label` field).",
+        "_keyPrefixRationale": "Leading underscore reduces overlap with vendor field names in ResponseData."
+      }
+    }
+  },
+  "responseTypesById": {
+    "0": {
+      "name": "MarketDataSubscriptionResults",
+      "label": "Market Data Subscription Results"
+    },
+    "1": {
+      "name": "InstrumentDefinition",
+      "label": "Instrument Definition Response"
+    },
+    "2": {
+      "name": "Book",
+      "label": "Book Message"
+    },
+    "3": {
+      "name": "Error",
+      "label": "Error Message"
+    },
+    "5": {
+      "name": "TradePrice",
+      "label": "Trade Price Message"
+    },
+    "6": {
+      "name": "Statistics",
+      "label": "Statistics Message"
+    },
+    "8": {
+      "name": "OrderStatus",
+      "label": "Order Status Message"
+    },
+    "9": {
+      "name": "Authorize",
+      "label": "Authorize Response"
+    },
+    "13": {
+      "name": "UserSettings",
+      "label": "User Settings Response"
+    },
+    "14": {
+      "name": "TradeSettings",
+      "label": "Trade Settings Response"
+    },
+    "15": {
+      "name": "Accounts",
+      "label": "Accounts Response"
+    },
+    "20": {
+      "name": "PositionSummary",
+      "label": "Position Summary Response"
+    },
+    "21": {
+      "name": "NotEntitledError",
+      "label": "Not Entitled Error Message"
+    },
+    "23": {
+      "name": "SecurityNotFoundError",
+      "label": "Security Not Found Error Message"
+    },
+    "26": {
+      "name": "Pong",
+      "label": "Pong Response"
+    },
+    "31": {
+      "name": "VolumeAtLevel",
+      "label": "Volume at Level Message"
+    },
+    "33": {
+      "name": "SearchResults",
+      "label": "Search Results Response"
+    },
+    "34": {
+      "name": "OptionsDescriptions",
+      "label": "Options Descriptions Response"
+    },
+    "35": {
+      "name": "TopOfBook",
+      "label": "Top-of-Book Message"
+    },
+    "37": {
+      "name": "SessionTrade",
+      "label": "Trade Message (session trades at login)"
+    },
+    "38": {
+      "name": "AvailableBrokerRoutes",
+      "label": "Available Broker Routes Response"
+    },
+    "39": {
+      "name": "TheoAndGreeks",
+      "label": "Theo & Greeks Message"
+    },
+    "40": {
+      "name": "SpreadClassification",
+      "label": "Spread Classification Response"
+    },
+    "41": {
+      "name": "TickSizeResponse",
+      "label": "Tick Size Response Message"
+    },
+    "42": {
+      "name": "RfqFailed",
+      "label": "RFQ Failed Response Message"
+    },
+    "43": {
+      "name": "AvailableStrategies",
+      "label": "Available Strategies Response"
+    },
+    "44": {
+      "name": "Spreads",
+      "label": "Spreads Response Message"
+    },
+    "45": {
+      "name": "MarginError",
+      "label": "Margin Error Message"
+    },
+    "46": {
+      "name": "MarginResponse",
+      "label": "Margin Response Message"
+    },
+    "61": {
+      "name": "ParticipantMarketData",
+      "label": "Participant Market Data"
+    }
+  },
+  "requestTypesById": {
+    "0": {
+      "name": "MarketData",
+      "label": "Market data subscription"
+    },
+    "2": {
+      "name": "SendOrder",
+      "label": "Send order"
+    },
+    "4": {
+      "name": "ReviseOrder",
+      "label": "Revise order (cancel-replace)"
+    },
+    "8": {
+      "name": "GetAllOrders",
+      "label": "Get all orders"
+    },
+    "26": {
+      "name": "Ping",
+      "label": "Ping (heartbeat)"
+    },
+    "33": {
+      "name": "InstrumentSearch",
+      "label": "Instrument search"
+    },
+    "45": {
+      "name": "Authorize",
+      "label": "Authorize (JWT in RequestData)"
+    }
+  }
+}
