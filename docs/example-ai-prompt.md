@@ -35,33 +35,70 @@ inside `logincredentials` (and map it to something like `RIVAL_ONE_FIRM` in your
 Copy everything in the block below into a **new** chat in the project where the **rival-one** skill (or this repo’s `skills/`) is available. Swap the language, features, and placeholder names to match what you want.
 
 ```text
-I am integrating with the Rival One WebSocket API. Use the rival-one skill / the repo’s skills/catalog guides and the official Client Requests doc for message shapes.
+Build me a minimal [Python / TypeScript / C# — pick one] application for Rival One WebSocket API integration.
 
-Build me a minimal [Python / TypeScript / C# — pick one] application that:
+## Requirements
 
-1. Loads configuration from environment variables (no secrets in source code). **Create a `.env` file** in the project (gitignored) and set `RIVAL_ONE_*` variables using **the values from the JSON I provide below**—map each field explicitly, for example:
-   - `logincredentials.apikey` → `RIVAL_ONE_API_KEY`
-   - `secret` → `RIVAL_ONE_SECRET_KEY`
-   - `logincredentials.group` → `RIVAL_ONE_GROUP`
-   - `logincredentials.user` → `RIVAL_ONE_USER`
-   - `server_url` → `RIVAL_ONE_WSS_URL`
-   - `logincredentials.sub` → `RIVAL_ONE_JWT_SUB` (if present)
-   - `logincredentials.name` → `RIVAL_ONE_DISPLAY_NAME` for display/logging only unless Client Requests requires `name` in the JWT (it does not in the Authorize payload table—confirm if your onboarding differs)
-   - optional `logincredentials.firm` or top-level firm field → `RIVAL_ONE_FIRM` when I use firm scoping
-   Do not paste my real secrets into source files or the README; the app should read from `.env` via the environment (e.g. `python-dotenv` or your stack’s equivalent). JWT payload claims: `sub`, `group`, `user`, `apikey` (and `firm` when applicable)—see Client Requests.
+1. **Configuration from environment variables** (no secrets in source code)
+   - Create a `.env.example` template with these placeholder variable names:
+     - RIVAL_ONE_API_KEY=your_api_key_here
+     - RIVAL_ONE_SECRET_KEY=your_secret_key_here
+     - RIVAL_ONE_GROUP=HUNTER
+     - RIVAL_ONE_USER=jdoe
+     - RIVAL_ONE_JWT_SUB=Rival-Websocket-API-Client
+     - RIVAL_ONE_DISPLAY_NAME=John Doe
+     - RIVAL_ONE_WSS_URL=wss://sim-api.rivalsystems.cloud:50443
+     - RIVAL_ONE_FIRM=#Only use if Rival JSON contained a firm field.
+   - Load from a `.env` file (gitignored) at runtime using your language's standard dotenv library/package
+   - Include a config module that validates all required variables are present
+   - Do not hardcode secrets in source files or README
 
-2. Builds an HS512 JWT and opens a WebSocket to server_url with header Authorization: Bearer <jwt>.
+2. **HS512 JWT authentication**
+   - Build a JWT with claims: sub, group, user, apikey, [firm if present]
+   - Sign with RIVAL_ONE_SECRET_KEY using HS512 algorithm
+   - Use your language's standard JWT library
 
-3. After connect, sends Authorize (RequestType 45) with RequestData equal to the same JWT string.
+3. **WebSocket connection with Authorization header**
+   - Connect to RIVAL_ONE_WSS_URL
+   - Include Authorization header: "Bearer <jwt>"
+   - Use your language's native WebSocket library
 
-4. Starts a heartbeat loop sending Ping (RequestType 26) every 240 seconds (or the interval in skills/references/protocol.md / vendor Overview).
+4. **Authorize handshake**
+   - After connect, send RequestType 45 (Authorize)
+   - Set RequestData equal to the JWT string itself
 
-5. Logs incoming JSON messages to stdout so I can verify the session, and shuts down cleanly on Ctrl+C.
+5. **Heartbeat loop**
+   - Send Ping (RequestType 26) every 240 seconds
+   - Run as a background task
 
-6. Uses **one** WebSocket for everything: structure the app so multiple market-data subscriptions and future order traffic share that single connection (one receive loop demuxing messages; serialized sends). Follow skills/references/protocol.md section on one WebSocket for market data and orders.
+6. **Single WebSocket for all traffic**
+   - One connection for all market data and order traffic
+   - One receive loop that demuxes and logs all incoming JSON messages
+   - Serialize all sends (no concurrent writes to the socket)
+   - Log all incoming messages as formatted JSON to stdout with clear arrows (→ sent, ← received)
+
+7. **Clean shutdown**
+   - Handle graceful shutdown on Ctrl+C / SIGINT
+   - Cancel background tasks
+   - Close WebSocket cleanly
+
+8. **Logging**
+   - Use your language's standard logging library
+   - Include timestamps
+   - Log connection state, Ping sends, and all incoming/outgoing messages
+
+## Structure
+
+- `config.[ext]` — environment loading and validation (returns validated config object)
+- `rival_one_client.[ext]` — main client class with async/await or equivalent
+- `.env.example` — template for users to copy to `.env` and fill with their credentials
+- `.gitignore` — ignore .env, build artifacts, dependencies, OS files
+- `requirements.txt` / `package.json` / `*.csproj` — dependency manifest
+- `README.md` — instructions to create `.env` from their Rival credential JSON using the env var mapping above
+
+Use your language's native async/await patterns (or equivalent). Include docstrings/comments. Keep code minimal but readable.
 
 Here is my credential JSON—use it to **fill `.env`** with the mapped `RIVAL_ONE_*` keys (placeholders here; I will replace with real values locally):
-
 {
   "logincredentials": {
     "sub": "Rival-Websocket-API-Client",
@@ -79,7 +116,7 @@ Also add a short README in the project listing the same `RIVAL_ONE_*` env vars a
 
 ## Tips
 
-- **Sub claim:** Your template uses `"sub": "Rival-Websocket-API-Client"`. Some docs use `Rival API user Authentication`. Match whatever Rival gave you or what [Client Requests](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/client-requests-OKFTPUQJ6w) specifies for your environment.
+- [Client Requests](https://rivalsystems.getoutline.com/s/3a1c668b-79be-48b3-83a1-859ecf82a4d0/doc/client-requests-OKFTPUQJ6w)
 - **`name`:** Include in the JWT only if required by the vendor; otherwise your app can use it for logging or UI only.
 - **After it runs:** Extend with instrument search (33) and market data (0) using [`skills/catalog/market-data.md`](../skills/catalog/market-data.md), or orders using [`skills/catalog/orders.md`](../skills/catalog/orders.md).
 
@@ -89,3 +126,7 @@ Also add a short README in the project listing the same `RIVAL_ONE_*` env vars a
 - [README — Environment variables](../README.md#environment-variables-your-app)
 - [`skills/catalog/auth-basics.md`](../skills/catalog/auth-basics.md)
 - [`docs/troubleshooting.md`](troubleshooting.md)
+
+
+## Disclaimer
+The AI Agent Skill Repository is provided to assist with connectivity and authentication to the Rival One WebSocket API. Rival Systems is responsible solely for ensuring proper API connectivity and login functionality. Any applications, tools, or solutions built using this repository , including those generated through AI-assisted or automated coding methods are the sole responsibility of the developer or end user. Rival Systems makes no warranties and assumes no liability for the functionality, accuracy, or performance of third-party applications built on top of this repository.
